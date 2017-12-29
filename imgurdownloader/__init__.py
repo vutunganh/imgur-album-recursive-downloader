@@ -142,8 +142,8 @@ def save_image(info, destination, num = ''):
             txtpath = os.path.join(destination, '%s.txt' % slug)
 
         with open(txtpath, 'w') as f:
-            f.write("Title: %s\r" % title)
-            f.write("Description: %s\r" % description)
+            f.write("Title: {}\n".format(title))
+            f.write("Description: {}\n".format(description))
 
         if G['find-albums']:
             for album in find_albums(description):
@@ -217,7 +217,10 @@ def download_album(url=None, album=None, destination=None):
     sluger = UniqueSlugify()        # uids=os.listdir(destination)
 
     if not meta['title']:
-        meta['title'] = 'Unknown Artists - Untitled Album'
+        if G['untitled_to_id']:
+            meta['title'] = album
+        else:
+            meta['title'] = 'Unknown Artists - Untitled Album'
 
     album_id = sluger(meta['title'])
     album_path = os.path.join(destination, album_id)
@@ -232,9 +235,9 @@ def download_album(url=None, album=None, destination=None):
             processor.put(lambda: download_album(album=album))
 
     with open(os.path.join(album_path, 'album-metadata.txt'), 'w') as f:
-        f.write('Title %s\r' % meta['title'] or meta['id'])
-        f.write('Album ID: %s\r' % album)
-        f.write('Description: %s\r' % meta['description'] or '')
+        f.write('Title {}\n'.format(meta['title'] or meta['id']))
+        f.write('Album ID: {}\n'.format(album))
+        f.write('Description: {}\n'.format(meta['description'] or ''))
 
     endpoint = "https://api.imgur.com/3/album/%s/images" % album
     try:
@@ -273,9 +276,11 @@ def request(url):
 @click.option('-v', '--verbose', count=True, help="Verbose mode")
 @click.option('--ordered/--not-ordered', default=False,
               help="Whether the images' names will be prefixed by their order in the album")
+@click.option('--untitled-to-id',default=False,
+              help="Untitled albums will be put into a folder named as the album id")
 @click.argument("url")
 @click.argument("destination")
-def downloader(url, destination, recursive, verbose, ordered):
+def downloader(url, destination, recursive, verbose, ordered, untitled_to_id):
     settings = get_settings()
     clientid = settings['clientid']
 
@@ -288,6 +293,7 @@ def downloader(url, destination, recursive, verbose, ordered):
     G['base'] = destination
     G['find-albums'] = recursive
     G['ordered'] = ordered
+    G['untitled_to_id'] = untitled_to_id
 
     processor.put(lambda: download_album(url=url))
     processor.start()
